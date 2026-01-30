@@ -285,10 +285,10 @@ def main():
     parser.add_argument('--mu', type=float, default=0.01, help="Viscosity")
     parser.add_argument('--T', type=float, default=2.5, help="Final Time")
     parser.add_argument('--dt', type=float, default=0.001, help="Time Step")
-    parser.add_argument('--out', type=str, default='data/simulation_data.csv', help="Output data file")
-    parser.add_argument('--metrics', type=str, default='data/metrics.csv', help="Metrics file")
+    parser.add_argument('--out', type=str, default='data1/simulation_data.csv', help="Output data1 file")
+    parser.add_argument('--metrics', type=str, default='data1/metrics.csv', help="Metrics file")
     parser.add_argument('--skip', type=int, default=100, help="Save interval (default: 100)")
-    parser.add_argument('--save', action='store_true', help="Enable saving simulation data")
+    parser.add_argument('--save', action='store_true', help="Enable saving simulation data1")
     
     args = parser.parse_args()
     

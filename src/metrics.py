@@ -9,7 +9,7 @@ def calculate_and_plot_metrics(metrics_file, N_grid_filter=None):
         return
 
     df = pd.read_csv(metrics_file)
-    
+
     # Filter by grid size if specified, otherwise take the most common or ask
     if N_grid_filter:
         df = df[df['N_grid'] == N_grid_filter]
@@ -20,25 +20,25 @@ def calculate_and_plot_metrics(metrics_file, N_grid_filter=None):
             most_common_N = df['N_grid'].mode()[0]
             df = df[df['N_grid'] == most_common_N]
             print(f"Selected N_grid = {most_common_N}")
-    
+
     # Sort by N_proc
     df = df.sort_values('N_proc')
-    
+
     # Group by N_proc and take mean time (in case multiple runs)
     df_grouped = df.groupby('N_proc')['Total_Time'].mean().reset_index()
-    
+
     # Find Sequential Time (T1)
     if 1 in df_grouped['N_proc'].values:
         T1 = df_grouped[df_grouped['N_proc'] == 1]['Total_Time'].values[0]
     else:
         print("No sequential run (N_proc=1) found. Cannot calculate Speedup/Efficiency correctly.")
-        T1 = df_grouped['Total_Time'].max() # Fallback estimate (usually wrong but prevents crash)
+        T1 = df_grouped['Total_Time'].max()  # Fallback estimate (usually wrong but prevents crash)
         print(f"Assuming T1 = {T1} (Slowest run) for demonstration.")
 
     # Calculate Metrics
     df_grouped['Speedup'] = T1 / df_grouped['Total_Time']
     df_grouped['Efficiency'] = df_grouped['Speedup'] / df_grouped['N_proc']
-    
+
     # Karp-Flatt: e = (1/S - 1/p) / (1 - 1/p)
     # Only valid for p > 1
     def karp_flatt(row):
@@ -46,16 +46,47 @@ def calculate_and_plot_metrics(metrics_file, N_grid_filter=None):
         s = row['Speedup']
         if p == 1:
             return 0.0
-        return ((1/s) - (1/p)) / (1 - (1/p))
-    
+        return ((1 / s) - (1 / p)) / (1 - (1 / p))
+
     df_grouped['Karp_Flatt'] = df_grouped.apply(karp_flatt, axis=1)
 
     print("\nCalculated Metrics:")
     print(df_grouped)
-    
-    # Plotting
+
+    # Execution Time Plots (Linear and Log)
+    fig_time, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+
+    max_proc = int(df_grouped['N_proc'].max())
+    custom_ticks = range(0, max_proc + 2, 2)
+
+    # Plot 1: Linear Scale
+    ax1.plot(df_grouped['N_proc'], df_grouped['Total_Time'], marker='o', color='blue', linewidth=2)
+    ax1.set_title('Execution Time vs Processors (Linear)')
+    ax1.set_xlabel('Number of Processors')
+    ax1.set_ylabel('Total Time (s)')
+    ax1.grid(True)
+    ax1.set_xticks(custom_ticks)
+    ax1.set_xlim(left=0)
+
+    # Plot 2: Log Scale
+    ax2.plot(df_grouped['N_proc'], df_grouped['Total_Time'], marker='o', color='blue', linewidth=2)
+    ax2.set_title('Execution Time vs Processors (Log Scale)')
+    ax2.set_xlabel('Number of Processors')
+    ax2.set_ylabel('Total Time (s)')
+    ax2.set_yscale('log')
+    ax2.grid(True, which="both", ls="-", alpha=0.5)
+    ax2.set_xticks(custom_ticks)
+    ax2.set_xlim(left=0)
+
+    plt.tight_layout()
+    time_output_img = 'execution_time.png'
+    plt.savefig(time_output_img)
+    print(f"Time plot saved to {time_output_img}")
+    plt.close()
+
+    # Plotting Metrics
     fig, axs = plt.subplots(1, 3, figsize=(18, 5))
-    
+
     # Speedup
     axs[0].plot(df_grouped['N_proc'], df_grouped['Speedup'], marker='o', label='Measured')
     axs[0].plot(df_grouped['N_proc'], df_grouped['N_proc'], 'k--', label='Ideal Linear')
@@ -64,22 +95,24 @@ def calculate_and_plot_metrics(metrics_file, N_grid_filter=None):
     axs[0].set_ylabel('Speedup')
     axs[0].legend()
     axs[0].grid(True)
-    
+
     # Efficiency
-    axs[1].plot(df_grouped['N_proc'], df_grouped['Efficiency'], marker='o', color='g')
+    axs[1].plot(df_grouped['N_proc'], df_grouped['Efficiency'], marker='o', color='g', label='Measured')
+    axs[1].axhline(y=1.0, color='black', linestyle='--', alpha=0.5, label='Ideal (1.0)')
     axs[1].set_title('Efficiency')
     axs[1].set_xlabel('Number of Processors')
     axs[1].set_ylabel('Efficiency')
-    axs[1].set_ylim(0, 1.1)
+    axs[1].set_ylim(0, 1.4)
+    axs[1].legend()
     axs[1].grid(True)
-    
+
     # Karp-Flatt
     axs[2].plot(df_grouped['N_proc'][1:], df_grouped['Karp_Flatt'][1:], marker='o', color='r')
     axs[2].set_title('Karp-Flatt Metric')
     axs[2].set_xlabel('Number of Processors')
     axs[2].set_ylabel('e')
     axs[2].grid(True)
-    
+
     plt.tight_layout()
     output_img = 'metrics_plot.png'
     plt.savefig(output_img)
@@ -90,5 +123,5 @@ if __name__ == "__main__":
     parser.add_argument('--file', type=str, default='data/metrics.csv')
     parser.add_argument('--N', type=int, help="Grid size to filter by")
     args = parser.parse_args()
-    
+
     calculate_and_plot_metrics(args.file, args.N)
